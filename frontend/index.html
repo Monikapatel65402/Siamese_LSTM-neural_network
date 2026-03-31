@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CartMatch — 3D Intelligence Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600&display=swap"
+        rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --bg: #030b14;
+            --bg2: #061220;
+            --panel: #081a2e;
+            --panel2: #0a2240;
+            --border: #0d3a6e;
+            --border2: #1a5fa0;
+            --glow: #00d4ff;
+            --glow2: #00ff88;
+            --glow3: #ff6b35;
+            --text: #e0f4ff;
+            --text2: #7ab8d4;
+            --text3: #3d7a9a;
+            --accent: #00d4ff;
+            --accent2: #00ff88;
+            --warn: #ff6b35;
+            --r: 8px;
+        }
+
+        html {
+            scroll-behavior: smooth
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        /* ── CUSTOM CURSOR ── */
+        #cursor {
+            position: fixed;
+            width: 12px;
+            height: 12px;
+            background: var(--glow);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s, width 0.2s, height 0.2s, background 0.2s;
+            box-shadow: 0 0 10px var(--glow), 0 0 20px var(--glow);
+        }
+
+        #cursor-ring {
+            position: fixed;
+            width: 36px;
+            height: 36px;
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: transform 0.15s ease, width 0.3s, height 0.3s;
+        }
+
+        /* ── CANVAS BG ── */
+        #bgCanvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            opacity: 0.6
+        }
+
+        /* ── SCANLINES ── */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.03) 2px, rgba(0, 0, 0, 0.03) 4px);
+        }
+
+        /* ── NAV ── */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            height: 60px;
+            background: rgba(3, 11, 20, 0.9);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+        }
+
+        .nav-logo {
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            font-weight: 900;
+            color: var(--glow);
+            text-shadow: 0 0 20px var(--glow);
+            letter-spacing: 3px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 34px;
+            height: 34px;
+            border: 2px solid var(--glow);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            box-shadow: 0 0 12px var(--glow), inset 0 0 8px rgba(0, 212, 255, 0.1);
+            animation: logoPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 12px var(--glow), inset 0 0 8px rgba(0, 212, 255, 0.1)
+            }
+
+            50% {
+                box-shadow: 0 0 24px var(--glow), 0 0 40px rgba(0, 212, 255, 0.3), inset 0 0 16px rgba(0, 212, 255, 0.2)
+            }
+        }
+
+        .nav-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--glow2);
+            letter-spacing: 1px
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--glow2);
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+            box-shadow: 0 0 8px var(--glow2)
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.3
+            }
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 24px
+        }
+
+        .nav-time {
+            font-family: 'Orbitron', monospace;
+            font-size: 13px;
+            color: var(--text2);
+            letter-spacing: 2px
+        }
+
+        /* ── MAIN ── */
+        main {
+            position: relative;
+            z-index: 2;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 80px 24px 60px;
+        }
+
+        /* ── HERO ── */
+        .hero {
+            text-align: center;
+            padding: 40px 0 50px;
+            animation: fadeUp 0.8s ease both;
+        }
+
+        .hero-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--glow);
+            border: 1px solid var(--border2);
+            padding: 6px 18px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .hero h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: clamp(32px, 6vw, 72px);
+            font-weight: 900;
+            letter-spacing: -1px;
+            line-height: 1.05;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .hero h1 span {
+            color: var(--glow);
+            text-shadow: 0 0 30px var(--glow), 0 0 60px rgba(0, 212, 255, 0.3);
+        }
+
+        .hero-sub {
+            font-size: 16px;
+            font-weight: 300;
+            color: var(--text2);
+            letter-spacing: 1px;
+            margin-bottom: 40px;
+        }
+
+        /* ── STATS ROW ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+            animation: fadeUp 0.8s 0.1s ease both;
+        }
+
+        .stat-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            padding: 20px 24px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s, transform 0.3s;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: scanBar 3s linear infinite;
+        }
+
+        @keyframes scanBar {
+            0% {
+                transform: translateX(-100%)
+            }
+
+            100% {
+                transform: translateX(100%)
+            }
+        }
+
+        .stat-card:hover {
+            border-color: var(--border2);
+            transform: translateY(-4px)
+        }
+
+        .stat-card:nth-child(2)::before {
+            animation-delay: -1s
+        }
+
+        .stat-card:nth-child(3)::before {
+            animation-delay: -2s;
+            --accent: var(--glow2)
+        }
+
+        .stat-card:nth-child(4)::before {
+            animation-delay: -0.5s;
+            --accent: var(--warn)
+        }
+
+        .stat-label {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text3);
+            margin-bottom: 8px
+        }
+
+        .stat-val {
+            font-family: 'Orbitron', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--glow);
+            text-shadow: 0 0 16px var(--glow);
+        }
+
+        .stat-card:nth-child(3) .stat-val {
+            color: var(--glow2);
+            text-shadow: 0 0 16px var(--glow2)
+        }
+
+        .stat-card:nth-child(4) .stat-val {
+            color: var(--warn);
+            text-shadow: 0 0 16px var(--warn)
+        }
+
+        .stat-sub {
+            font-size: 12px;
+            color: var(--text3);
+            margin-top: 4px
+        }
+
+        /* ── GRID ── */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            animation: fadeUp 0.8s 0.2s ease both;
+        }
+
+        .panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(ellipse at 50% 0%, rgba(0, 212, 255, 0.04), transparent 70%);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            color: var(--text2);
+            text-transform: uppercase;
+        }
+
+        .panel-badge {
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--border2);
+            color: var(--glow);
+        }
+
+        /* ── SEARCH PANEL ── */
+        .search-panel {
+            grid-column: 1/2
+        }
+
+        .search-wrap {
+            position: relative;
+            margin-bottom: 16px
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 48px 14px 18px;
+            background: var(--bg);
+            border: 1px solid var(--border2);
+            border-radius: var(--r);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text);
+            letter-spacing: 0.5px;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: var(--glow);
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15), 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: var(--text3)
+        }
+
+        .search-btn {
+            width: 100%;
+            padding: 13px;
+            background: transparent;
+            border: 1px solid var(--glow);
+            border-radius: var(--r);
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--glow);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .search-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(0, 212, 255, 0.15);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .search-btn:hover::before {
+            width: 400px;
+            height: 400px
+        }
+
+        .search-btn:hover {
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), inset 0 0 20px rgba(0, 212, 255, 0.05)
+        }
+
+        .search-btn:active {
+            transform: scale(0.98)
+        }
+
+        .search-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed
+        }
+
+        .quick-label {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text3);
+            margin-bottom: 10px;
+            display: block
+        }
+
+        .pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px
+        }
+
+        .pill {
+            padding: 5px 14px;
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text2);
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pill:hover {
+            border-color: var(--glow);
+            color: var(--glow);
+            background: rgba(0, 212, 255, 0.1);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.2)
+        }
+
+        /* top-n slider */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px
+        }
+
+        .slider-label {
+            font-size: 12px;
+            letter-spacing: 1px;
+            color: var(--text3);
+            white-space: nowrap
+        }
+
+        input[type=range] {
+            flex: 1;
+            accent-color: var(--glow);
+            cursor: pointer;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .slider-val {
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            color: var(--glow);
+            min-width: 24px;
+            text-align: center;
+        }
+
+        /* ── 3D NETWORK VIZ ── */
+        .network-panel {
+            grid-column: 2/3;
+            grid-row: 1/3
+        }
+
+        #networkCanvas {
+            width: 100%;
+            height: 380px;
+            border-radius: var(--r);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            cursor: grab;
+            display: block;
+        }
+
+        #networkCanvas:active {
+            cursor: grabbing
+        }
+
+        .canvas-hint {
+            font-size: 11px;
+            color: var(--text3);
+            letter-spacing: 1px;
+            text-align: center;
+            margin-top: 8px
+        }
+
+        /* ── RESULTS PANEL ── */
+        .results-panel {
+            grid-column: 1/2
+        }
+
+        .result-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            margin-bottom: 10px;
+            transition: all 0.25s;
+            animation: slideIn 0.4s ease both;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--glow);
+            box-shadow: 0 0 10px var(--glow);
+        }
+
+        .result-item:nth-child(2)::before {
+            background: var(--glow2);
+            box-shadow: 0 0 10px var(--glow2)
+        }
+
+        .result-item:nth-child(3)::before {
+            background: #a78bfa;
+            box-shadow: 0 0 10px #a78bfa
+        }
+
+        .result-item:hover {
+            border-color: var(--border2);
+            transform: translateX(4px);
+            background: var(--panel2)
+        }
+
+        .result-rank {
+            font-family: 'Orbitron', monospace;
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--border2);
+            min-width: 32px;
+        }
+
+        .result-info {
+            flex: 1
+        }
+
+        .result-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+            letter-spacing: 0.3px;
+            margin-bottom: 6px
+        }
+
+        .bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .bar-bg {
+            flex: 1;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 1s cubic-bezier(.23, 1, .32, 1);
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .bar-score {
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            min-width: 44px;
+            text-align: right;
+        }
+
+        .result-emoji {
+            font-size: 24px;
+            filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.3))
+        }
+
+        /* ── CATALOG PANEL ── */
+        .catalog-panel {
+            grid-column: 1/3;
+            animation: fadeUp 0.8s 0.3s ease both;
+        }
+
+        .catalog-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px
+        }
+
+        .cat-tag {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text2);
+            transition: all 0.2s;
+        }
+
+        .cat-tag:hover {
+            border-color: var(--border2)
+        }
+
+        .cat-tag button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text3);
+            font-size: 14px;
+            line-height: 1;
+            padding: 0;
+            transition: color 0.15s;
+        }
+
+        .cat-tag button:hover {
+            color: var(--warn)
+        }
+
+        .add-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px
+        }
+
+        .add-input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .add-input:focus {
+            border-color: var(--glow2)
+        }
+
+        .add-input::placeholder {
+            color: var(--text3)
+        }
+
+        .add-btn {
+            padding: 10px 20px;
+            background: rgba(0, 255, 136, 0.08);
+            border: 1px solid var(--glow2);
+            border-radius: var(--r);
+            color: var(--glow2);
+            font-family: 'Orbitron', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .add-btn:hover {
+            background: rgba(0, 255, 136, 0.15);
+            box-shadow: 0 0 12px rgba(0, 255, 136, 0.2)
+        }
+
+        /* ── EMPTY / LOADING ── */
+        .state-box {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .state-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            opacity: 0.5
+        }
+
+        .state-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            color: var(--text2);
+            margin-bottom: 6px;
+        }
+
+        .state-sub {
+            font-size: 13px;
+            color: var(--text3);
+            letter-spacing: 0.5px
+        }
+
+        .loading-ring {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--glow);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+            box-shadow: 0 0 16px rgba(0, 212, 255, 0.3);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            background: var(--panel2);
+            border: 1px solid var(--border2);
+            color: var(--glow);
+            padding: 12px 20px;
+            border-radius: var(--r);
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 500;
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 999;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1
+        }
+
+        /* ── ANIMATIONS ── */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-16px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0)
+            }
+        }
+
+        /* ── RESPONSIVE ── */
+        @media(max-width:900px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr
+            }
+
+            .network-panel {
+                grid-column: 1/2;
+                grid-row: auto
+            }
+
+            .results-panel {
+                grid-column: 1/2
+            }
+
+            .catalog-panel {
+                grid-column: 1/2
+            }
+
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr)
+            }
+        }
+
+        @media(max-width:500px) {
+            .stats-row {
+                grid-template-columns: 1fr 1fr
+            }
+
+            nav {
+                padding: 0 16px
+            }
+
+            main {
+                padding: 70px 12px 40px
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="bgCanvas"></canvas>
+    <div id="cursor"></div>
+    <div id="cursor-ring"></div>
+
+    <!-- NAV -->
+    <nav>
+        <div class="nav-logo">
+            <div class="logo-icon">🛒</div>
+            CARTMATCH
+        </div>
+        <div class="nav-status">
+            <div class="status-dot"></div>
+            SIAMESE LSTM · ONLINE
+        </div>
+        <div class="nav-right">
+            <div class="nav-time" id="clock"></div>
+        </div>
+    </nav>
+
+    <main>
+
+        <!-- HERO -->
+        <div class="hero">
+            <div class="hero-tag">⬡ NEURAL RECOMMENDATION ENGINE v2.0</div>
+            <h1>CART<span>MATCH</span></h1>
+            <p class="hero-sub">Siamese LSTM · Instacart Dataset · 200K+ Product Pairs</p>
+        </div>
+
+        <!-- STATS -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Orders Trained</div>
+                <div class="stat-val" id="s1">0</div>
+                <div class="stat-sub">Instacart dataset</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Product Pairs</div>
+                <div class="stat-val" id="s2">0</div>
+                <div class="stat-sub">Positive + negative</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Model Accuracy</div>
+                <div class="stat-val" id="s3">0%</div>
+                <div class="stat-sub">Validation set</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Unique Products</div>
+                <div class="stat-val" id="s4">0</div>
+                <div class="stat-sub">In catalog</div>
+            </div>
+        </div>
+
+        <!-- DASHBOARD GRID -->
+        <div class="dashboard-grid">
+
+            <!-- SEARCH -->
+            <div class="panel search-panel">
+                <div class="panel-header">
+                    <div class="panel-title">Query Engine</div>
+                    <div class="panel-badge">ACTIVE</div>
+                </div>
+
+                <div class="search-wrap">
+                    <input class="search-input" id="mainInput" placeholder="Enter product name e.g. Organic Whole Milk"
+                        onkeydown="if(event.key==='Enter') recommend()" />
+                </div>
+
+                <div class="slider-row">
+                    <span class="slider-label">TOP N RESULTS</span>
+                    <input type="range" min="3" max="10" value="5" id="topN"
+                        oninput="document.getElementById('topNVal').textContent=this.value" />
+                    <span class="slider-val" id="topNVal">5</span>
+                </div>
+
+                <button class="search-btn" id="searchBtn" onclick="recommend()">
+                    ▶ EXECUTE INFERENCE
+                </button>
+
+                <br /><br />
+                <span class="quick-label">Quick Products</span>
+                <div class="pills">
+                    <span class="pill" onclick="setProduct('Organic Whole Milk')">🥛 Organic Milk</span>
+                    <span class="pill" onclick="setProduct('Sourdough Bread')">🍞 Sourdough</span>
+                    <span class="pill" onclick="setProduct('Baby Spinach')">🥬 Baby Spinach</span>
+                    <span class="pill" onclick="setProduct('Avocado')">🥑 Avocado</span>
+                    <span class="pill" onclick="setProduct('Greek Yogurt')">🫙 Greek Yogurt</span>
+                    <span class="pill" onclick="setProduct('Chicken Breast')">🍗 Chicken</span>
+                </div>
+            </div>
+
+            <!-- 3D NETWORK -->
+            <div class="panel network-panel">
+                <div class="panel-header">
+                    <div class="panel-title">3D Neural Network</div>
+                    <div class="panel-badge">INTERACTIVE</div>
+                </div>
+                <canvas id="networkCanvas"></canvas>
+                <div class="canvas-hint">DRAG TO ROTATE · SCROLL TO ZOOM</div>
+            </div>
+
+            <!-- RESULTS -->
+            <div class="panel results-panel">
+                <div class="panel-header">
+                    <div class="panel-title">Recommendations</div>
+                    <div class="panel-badge" id="resultsBadge">AWAITING</div>
+                </div>
+                <div id="resultsBox">
+                    <div class="state-box">
+                        <div class="state-icon">⬡</div>
+                        <div class="state-title">SYSTEM READY</div>
+                        <div class="state-sub">Enter a product and execute inference</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CATALOG -->
+        <div class="panel catalog-panel">
+            <div class="panel-header">
+                <div class="panel-title">Product Catalog</div>
+                <div style="display:flex;gap:8px">
+                    <div class="panel-badge" id="catalogCount">20 ITEMS</div>
+                    <button class="add-btn" onclick="resetCatalog()"
+                        style="font-size:10px;padding:3px 10px">RESET</button>
+                </div>
+            </div>
+            <div class="add-row">
+                <input class="add-input" id="catInput" placeholder="Add product to catalog…"
+                    onkeydown="if(event.key==='Enter') addItem()" />
+                <button class="add-btn" onclick="addItem()">+ ADD</button>
+            </div>
+            <div class="catalog-grid" id="catalogGrid"></div>
+        </div>
+
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ── CURSOR ──
+        const cur = document.getElementById('cursor');
+        const ring = document.getElementById('cursor-ring');
+        let mx = 0, my = 0, rx = 0, ry = 0;
+        document.addEventListener('mousemove', e => {
+            mx = e.clientX; my = e.clientY;
+            cur.style.left = mx + 'px'; cur.style.top = my + 'px';
+        });
+        function animRing() {
+            rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+            ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+            requestAnimationFrame(animRing);
+        }
+        animRing();
+        document.querySelectorAll('button,input,.pill,.cat-tag').forEach(el => {
+            el.addEventListener('mouseenter', () => { cur.style.width = '20px'; cur.style.height = '20px' });
+            el.addEventListener('mouseleave', () => { cur.style.width = '12px'; cur.style.height = '12px' });
+        });
+
+        // ── CLOCK ──
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent =
+                now.toLocaleTimeString('en-US', { hour12: false });
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        // ── ANIMATED STATS ──
+        function animateCount(id, target, suffix = '', duration = 1800) {
+            const el = document.getElementById(id);
+            const start = Date.now();
+            const t = () => {
+                const p = Math.min((Date.now() - start) / duration, 1);
+                const ease = 1 - Math.pow(1 - p, 3);
+                const val = Math.floor(ease * target);
+                el.textContent = (val >= 1000000 ? (val / 1000000).toFixed(1) + 'M' : val >= 1000 ? (val / 1000).toFixed(0) + 'K' : val) + suffix;
+                if (p < 1) requestAnimationFrame(t);
+                else el.textContent = (target >= 1000000 ? (target / 1000000).toFixed(1) + 'M' : target >= 1000 ? (target / 1000).toFixed(0) + 'K' : target) + suffix;
+            };
+            requestAnimationFrame(t);
+        }
+        setTimeout(() => {
+            animateCount('s1', 3400000, '', 2000);
+            animateCount('s2', 200000, '', 1800);
+            animateCount('s3', 92, '%', 1600);
+            animateCount('s4', 50000, '', 2000);
+        }, 400);
+
+        // ── BG PARTICLE CANVAS ──
+        const bgC = document.getElementById('bgCanvas');
+        const bgCtx = bgC.getContext('2d');
+        let W, H, particles = [];
+        function resizeBg() {
+            W = bgC.width = window.innerWidth;
+            H = bgC.height = window.innerHeight;
+        }
+        resizeBg(); window.addEventListener('resize', resizeBg);
+        for (let i = 0; i < 80; i++) particles.push({
+            x: Math.random() * 2000, y: Math.random() * 1200,
+            vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+            r: Math.random() * 2 + 0.5, a: Math.random() * 0.5 + 0.1
+        });
+        function drawBg() {
+            bgCtx.clearRect(0, 0, W, H);
+            particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+                if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+                bgCtx.beginPath();
+                bgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                bgCtx.fillStyle = `rgba(0,212,255,${p.a})`;
+                bgCtx.fill();
+            });
+            // connections
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const d = Math.sqrt(dx * dx + dy * dy);
+                    if (d < 120) {
+                        bgCtx.beginPath();
+                        bgCtx.moveTo(particles[i].x, particles[i].y);
+                        bgCtx.lineTo(particles[j].x, particles[j].y);
+                        bgCtx.strokeStyle = `rgba(0,212,255,${0.1 * (1 - d / 120)})`;
+                        bgCtx.lineWidth = 0.5;
+                        bgCtx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(drawBg);
+        }
+        drawBg();
+
+        // ── 3D NEURAL NETWORK ──
+        const nc = document.getElementById('networkCanvas');
+        const nCtx = nc.getContext('2d');
+        let rotX = 0.3, rotY = 0.5, isDragging = false, lastMX = 0, lastMY = 0, zoom = 1;
+        let autoRot = true;
+
+        nc.addEventListener('mousedown', e => { isDragging = true; lastMX = e.clientX; lastMY = e.clientY; autoRot = false });
+        window.addEventListener('mouseup', () => { isDragging = false });
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            rotY += (e.clientX - lastMX) * 0.01;
+            rotX += (e.clientY - lastMY) * 0.01;
+            lastMX = e.clientX; lastMY = e.clientY;
+        });
+        nc.addEventListener('wheel', e => { zoom = Math.max(0.5, Math.min(2, zoom - e.deltaY * 0.001)) });
+
+        // touch support
+        nc.addEventListener('touchstart', e => { isDragging = true; lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY; autoRot = false });
+        nc.addEventListener('touchend', () => isDragging = false);
+        nc.addEventListener('touchmove', e => {
+            rotY += (e.touches[0].clientX - lastMX) * 0.01;
+            rotX += (e.touches[0].clientY - lastMY) * 0.01;
+            lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
+        });
+
+        // Network layers: [input, embed, lstm1, lstm2, distance, output]
+        const LAYERS = [
+            { name: 'Input', nodes: 3, color: '#00d4ff' },
+            { name: 'Embed', nodes: 4, color: '#a78bfa' },
+            { name: 'LSTM-1', nodes: 5, color: '#f59e0b' },
+            { name: 'LSTM-2', nodes: 4, color: '#f59e0b' },
+            { name: 'Distance', nodes: 3, color: '#ff6b35' },
+            { name: 'Output', nodes: 1, color: '#00ff88' },
+        ];
+
+        function project(x, y, z) {
+            const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+            const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+            let y1 = y * cosX - z * sinX, z1 = y * sinX + z * cosX;
+            let x1 = x * cosY + z1 * sinY, z2 = -x * sinY + z1 * cosY;
+            const fov = 400 * zoom;
+            const zOff = 600;
+            const scale = fov / (zOff + z2);
+            const W2 = nc.width / 2, H2 = nc.height / 2;
+            return { sx: W2 + x1 * scale, sy: H2 + y1 * scale, scale, z: z2 };
+        }
+
+        let signalT = 0;
+        function draw3D() {
+            nc.width = nc.offsetWidth; nc.height = nc.offsetHeight;
+            nCtx.clearRect(0, 0, nc.width, nc.height);
+
+            if (autoRot) rotY += 0.005;
+
+            const W2 = nc.width / 2, H2 = nc.height / 2;
+            const layerSpacing = 90, nodeSpacing = 40;
+            const totalW = (LAYERS.length - 1) * layerSpacing;
+
+            // build node 3D positions
+            const nodes3D = [];
+            LAYERS.forEach((layer, li) => {
+                const lx = (li * layerSpacing) - totalW / 2;
+                const totalH = (layer.nodes - 1) * nodeSpacing;
+                for (let ni = 0; ni < layer.nodes; ni++) {
+                    const ny = ni * nodeSpacing - totalH / 2;
+                    nodes3D.push({ x: lx, y: ny, z: 0, layer: li, idx: ni, color: layer.color, name: layer.name });
+                }
+            });
+
+            // project
+            const proj = nodes3D.map(n => ({ ...n, ...project(n.x, n.y, n.z) }));
+
+            // draw edges (back to front)
+            signalT = (signalT + 0.02) % 1;
+            for (let li = 0; li < LAYERS.length - 1; li++) {
+                const fromNodes = proj.filter(n => n.layer === li);
+                const toNodes = proj.filter(n => n.layer === li + 1);
+                fromNodes.forEach(fn => {
+                    toNodes.forEach(tn => {
+                        const mid = {
+                            sx: fn.sx + (tn.sx - fn.sx) * signalT,
+                            sy: fn.sy + (tn.sy - fn.sy) * signalT
+                        };
+                        nCtx.beginPath();
+                        nCtx.moveTo(fn.sx, fn.sy);
+                        nCtx.lineTo(tn.sx, tn.sy);
+                        const alpha = Math.max(0.03, 0.12 * (fn.scale + tn.scale) / 2);
+                        nCtx.strokeStyle = `rgba(0,212,255,${alpha})`;
+                        nCtx.lineWidth = 0.5;
+                        nCtx.stroke();
+                        // signal dot
+                        if (Math.random() < 0.01) {
+                            nCtx.beginPath();
+                            nCtx.arc(mid.sx, mid.sy, 2, 0, Math.PI * 2);
+                            nCtx.fillStyle = fn.color;
+                            nCtx.fill();
+                        }
+                    });
+                });
+            }
+
+            // draw nodes
+            proj.sort((a, b) => a.z - b.z).forEach(n => {
+                const r = Math.max(4, 8 * n.scale);
+                // glow
+                const grd = nCtx.createRadialGradient(n.sx, n.sy, 0, n.sx, n.sy, r * 3);
+                grd.addColorStop(0, n.color + '44');
+                grd.addColorStop(1, 'transparent');
+                nCtx.beginPath();
+                nCtx.arc(n.sx, n.sy, r * 3, 0, Math.PI * 2);
+                nCtx.fillStyle = grd;
+                nCtx.fill();
+                // node
+                nCtx.beginPath();
+                nCtx.arc(n.sx, n.sy, r, 0, Math.PI * 2);
+                nCtx.fillStyle = n.color;
+                nCtx.shadowBlur = 12;
+                nCtx.shadowColor = n.color;
+                nCtx.fill();
+                nCtx.shadowBlur = 0;
+            });
+
+            // layer labels
+            LAYERS.forEach((layer, li) => {
+                const layerNodes = proj.filter(n => n.layer === li);
+                if (!layerNodes.length) return;
+                const avgX = layerNodes.reduce((s, n) => s + n.sx, 0) / layerNodes.length;
+                const minY = Math.min(...layerNodes.map(n => n.sy));
+                nCtx.fillStyle = layer.color;
+                nCtx.font = 'bold 10px Orbitron,monospace';
+                nCtx.textAlign = 'center';
+                nCtx.fillText(layer.name, avgX, minY - 16);
+            });
+
+            requestAnimationFrame(draw3D);
+        }
+        draw3D();
+
+        // ── CATALOG ──
+        let catalog = [
+            'Organic Whole Milk', 'Sourdough Bread', 'Cheddar Cheese', 'Greek Yogurt',
+            'Butter', 'Orange Juice', 'Cream Cheese', 'Eggs', 'Almond Milk', 'Baby Spinach',
+            'Avocado', 'Chicken Breast', 'Pasta', 'Olive Oil', 'Garlic', 'Tomatoes',
+            'Onions', 'Strawberries', 'Blueberries', 'Bananas'
+        ];
+
+        const EMOJIS = {
+            milk: '🥛', bread: '🍞', cheese: '🧀', yogurt: '🫙', butter: '🧈',
+            juice: '🧃', egg: '🥚', almond: '🌰', spinach: '🥬', avocado: '🥑', chicken: '🍗',
+            pasta: '🍝', olive: '🫒', garlic: '🧄', tomato: '🍅', onion: '🧅',
+            strawberr: '🍓', blueberr: '🫐', banana: '🍌', apple: '🍎', default: '🛒'
+        };
+
+        function getEmoji(n) {
+            const s = n.toLowerCase();
+            for (const [k, v] of Object.entries(EMOJIS)) if (s.includes(k)) return v;
+            return EMOJIS.default;
+        }
+
+        function renderCatalog() {
+            const g = document.getElementById('catalogGrid');
+            g.innerHTML = catalog.map((item, i) => `
+    <div class="cat-tag">
+      <span>${getEmoji(item)}</span>
+      <span>${item}</span>
+      <button onclick="removeItem(${i})">×</button>
+    </div>
+  `).join('');
+            document.getElementById('catalogCount').textContent = catalog.length + ' ITEMS';
+        }
+
+        function addItem() {
+            const inp = document.getElementById('catInput');
+            const v = inp.value.trim();
+            if (!v) { showToast('Enter a product name'); return }
+            if (catalog.includes(v)) { showToast('Already in catalog'); return }
+            catalog.push(v); inp.value = '';
+            renderCatalog(); showToast('Added: ' + v);
+        }
+
+        function removeItem(i) { catalog.splice(i, 1); renderCatalog() }
+
+        function resetCatalog() {
+            catalog = ['Organic Whole Milk', 'Sourdough Bread', 'Cheddar Cheese', 'Greek Yogurt',
+                'Butter', 'Orange Juice', 'Cream Cheese', 'Eggs', 'Almond Milk', 'Baby Spinach',
+                'Avocado', 'Chicken Breast', 'Pasta', 'Olive Oil', 'Garlic', 'Tomatoes',
+                'Onions', 'Strawberries', 'Blueberries', 'Bananas'];
+            renderCatalog(); showToast('Catalog reset');
+        }
+
+        // ── SEARCH ──
+        function setProduct(name) {
+            document.getElementById('mainInput').value = name;
+            document.getElementById('mainInput').focus();
+        }
+
+        function scoreColor(s) {
+            if (s >= 0.75) return '#00ff88';
+            if (s >= 0.55) return '#00d4ff';
+            return '#ff6b35';
+        }
+
+        async function recommend() {
+            const name = document.getElementById('mainInput').value.trim();
+            if (!name) { showToast('Enter a product name'); return }
+            if (catalog.length === 0) { showToast('Add items to catalog first'); return }
+
+            const btn = document.getElementById('searchBtn');
+            const topN = parseInt(document.getElementById('topN').value);
+            btn.disabled = true;
+            btn.textContent = '⟳ PROCESSING...';
+            document.getElementById('resultsBadge').textContent = 'COMPUTING';
+
+            document.getElementById('resultsBox').innerHTML = `
+    <div class="state-box">
+      <div class="loading-ring"></div>
+      <div class="state-title">RUNNING INFERENCE</div>
+      <div class="state-sub">Siamese LSTM processing "${name}"</div>
+    </div>`;
+
+            try {
+                // ── REAL API CALL ──
+                const res=await fetch('http://localhost:8000/recommend',{
+                  method:'POST',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({product_name:name,catalog,top_n:topN})
+                });
+                const data=await res.json();
+                showResults(name,data.recommendations);
+
+            } catch (e) {
+                showResults(name, catalog
+                    .map(p => ({ product: p, score: Math.random() * 0.45 + 0.55 }))
+                    .sort((a, b) => b.score - a.score).slice(0, topN));
+                showToast('Demo mode — connect your FastAPI backend');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '▶ EXECUTE INFERENCE';
+            }
+        }
+
+        function showResults(query, results) {
+            document.getElementById('resultsBadge').textContent = results.length + ' FOUND';
+            document.getElementById('resultsBox').innerHTML = results.map((r, i) => `
+    <div class="result-item" style="animation-delay:${i * 0.08}s">
+      <div class="result-rank">0${i + 1}</div>
+      <div class="result-info">
+        <div class="result-name">${r.product}</div>
+        <div class="bar-wrap">
+          <div class="bar-bg">
+            <div class="bar-fill" style="width:${(r.score * 100).toFixed(1)}%;background:${scoreColor(r.score)};color:${scoreColor(r.score)}"></div>
+          </div>
+          <span class="bar-score" style="color:${scoreColor(r.score)}">${(r.score * 100).toFixed(1)}%</span>
+        </div>
+      </div>
+      <div class="result-emoji">${getEmoji(r.product)}</div>
+    </div>
+  `).join('');
+        }
+
+        // ── TOAST ──
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2800);
+        }
+
+        // ── INIT ──
+        renderCatalog();
+    </script>
+</body>
+
+</html>

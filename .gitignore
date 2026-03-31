@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+.env
+data/*.csv
+data/*.db
+model/*.h5
+model/*.pt
+model/*.pkl
+node_modules/
+dist/
+.DS_Store
+mlruns/
