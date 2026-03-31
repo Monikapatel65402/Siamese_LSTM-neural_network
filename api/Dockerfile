@@ -1,7 +1,7 @@
 FROM python:3.10-slim
 WORKDIR /app
-COPY api/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY api/ .
-COPY model/ ./model/
+COPY api/requirements.txt api/
+RUN pip install --no-cache-dir -r api/requirements.txt
+COPY . .
+WORKDIR /app/api
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
